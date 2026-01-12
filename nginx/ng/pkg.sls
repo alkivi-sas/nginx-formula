@@ -33,6 +33,15 @@ nginx_install:
     - name: {{ nginx.lookup.package }}
     {% endif %}
 
+{% if grains.get('osmajorrelease') > 12 %}
+/usr/share/keyrings/nginx-archive-keyring.gpg:
+  file.managed:
+    - source: salt://nginx/files/nginx-archive-keyring.gpg
+    - mode: 0644
+    - require_in:
+      - pkgrepo: nginx_official_repo
+{% endif %}
+
 {% if salt['grains.get']('os_family') == 'Debian' %}
 nginx_official_repo:
   pkgrepo:
@@ -42,10 +51,15 @@ nginx_official_repo:
     - absent
     {%- endif %}
     - humanname: nginx apt repo
-    - name: deb http://nginx.org/packages/{{ grains['os'].lower() }}/ {{ grains['oscodename'] }} nginx
+  {% if grains.get('osmajorrelease') > 12 %}
+    - name: deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/{{ grains['os'].lower() }}/ {{ grains['oscodename'] }} nginx
+  {% else %}
+    - name: deb  http://nginx.org/packages/{{ grains['os'].lower() }}/ {{ grains['oscodename'] }} nginx
+  {% endif %}
     - file: /etc/apt/sources.list.d/nginx-official-{{ grains['oscodename'] }}.list
     - keyid: ABF5BD827BD9BF62
     - keyserver: keyserver.ubuntu.com
+    - aptkey: True
     - require_in:
       - pkg: nginx_install
     - watch_in:
